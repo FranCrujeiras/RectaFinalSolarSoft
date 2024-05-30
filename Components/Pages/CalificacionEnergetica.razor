@@ -1,0 +1,199 @@
+﻿@page "/calificacionEnergetica"
+
+@using FrontBlazor.Components.Models
+@using FrontBlazor.Components.Services
+@using FrontBlazor.Components.Extensions
+@using FrontBlazor.Components.Layout
+@rendermode InteractiveServer
+
+<PageTitle>Calificación Energética</PageTitle>
+@if (HaCargado)
+{
+    <DropDown />
+}
+<h3 class="mb-5" style="text-align:center">Calificación Energética</h3>
+<div class="row">
+    <div class="col-1">
+    </div>
+
+    <div class="col-3">
+        <h4>Asistente de calificación energética</h4>
+        <br />
+        <p>Este es el asistente de calificación energética de viviendas. A continuación, podrá indicar los datos relevantes para el cálculo de la eficiencia energética de la vivienda.</p>
+        <br />
+        <p>Primeramente, deberá introducir los datos generales del edificio, en el formulario de la pestaña "Información del edificio"</p>
+        <br />
+        <p>A continuación, deberá introducir los datos de los muros y cubiertas de la vivienda, en la pestaña "Envolvente térmica"</p>
+        <br />
+        <p>Luego, en la pestaña "Calefacción/ACS/Electricidad" podrá introducir la información sobre los sistemas de calefacción, agua caliente sanitaria, refrigeración etc. </p>
+        <br />
+        <p>Finalmente, deberá cubrir el formulario de contribuciones energéticas. El cálculo de la energía solar producida será automático si se ha simulado una instalación fotovoltaica con anterioridad</p>
+    </div>
+    <div class="col-1">
+    </div>
+
+    <div class="col-6 mb-5">
+        <Accordion Flush="false" AlwaysOpen="true">
+            @*          <EditForm Model="Instalacion" FormName="Terreno" OnSubmit="Calcular"> *@
+            <AccordionItem Title="Información del edificio">
+                <Content>
+                    <div class="mb-2 text-black">
+                        <label>Año de construcción</label>
+                    </div>
+                    <div class="mb-2">
+                        <Select class="form-select form-control" placeholder="Seleccione un año de construcción" style="z-index:99;background-color:rgba(255, 255, 255, 0.5)">
+                            <option value="Seleccionar">Seleccionar año de construcción</option>
+                            <option value="Anterior">Antes de 1981</option>
+                            <option value="NBE-CT-79">Entre 1981 y 2007</option>
+                            <option value="CTE2006">Entre 2007 y 2014</option>
+                            <option value="CTE2013">Después de 2014</option>
+                        </Select>
+                    </div>
+                    <div class="mb-2 text-black">
+                        <label>Provincia</label>
+                    </div>
+                    <div class="mb-2">
+                        <Input class="form-control" style="background-color:rgba(255, 255, 255, 0.5)" placeholder="Provincia" id="Provincia" />
+                    </div>
+                    <div class="mb-2 text-black">
+                        <label>Altitud del terreno</label>
+                    </div>
+                    <div class="mb-2">
+                        <Input class="form-control" style="background-color:rgba(255, 255, 255, 0.5)" placeholder="Altitud del terreno" id="AltitudTerreno" />
+                    </div>
+                    <div class="mb-2 text-black">
+                        <label>Superficie habitable</label>
+                    </div>
+                    <div class="mb-2">
+                        <Input class="form-control" style="background-color:rgba(255, 255, 255, 0.5)" placeholder="Superficie habitable" id="SuperficieHabitable" />
+                    </div>
+                    <div class="mb-2 text-black">
+                        <label>Altura de planta</label>
+                    </div>
+                    <div class="mb-2">
+                        <Input class="form-control" style="background-color:rgba(255, 255, 255, 0.5)" placeholder="Altura de planta" id="AlturaPlanta">
+                    </div>
+                    <div class="mb-2 text-black">
+                        <label>Número de plantas</label>
+                    </div>
+                    <div class="mb-2">
+                        <Input class="form-control" style="background-color:rgba(255, 255, 255, 0.5)" placeholder="Número de plantas" id="NumPlantas">
+                    </div>
+                    <div class="mb-2 text-black">
+                        <label>Demanda de ACS (L/día)</label>
+                    </div>
+                    <div class="mb-2">
+                        <Input class="form-control" style="background-color:rgba(255, 255, 255, 0.5)" placeholder="Demanda de ACS" id="DemandaACS">
+                    </div>
+                </Content>
+            </AccordionItem>
+            <AccordionItem Title="Envolvente térmica">
+                <Content>
+
+                </Content>
+            </AccordionItem>
+            <AccordionItem Title="Calefacción/ACS/Electricidad">
+                <Content>
+                    <div class="mb-2 text-black">
+                        <label>Tipo de instalación</label>
+                    </div>
+                    <div class="mb-2">
+                        <Select class="form-select form-control" placeholder="Seleccione un tipo de instalación" style="z-index:99;background-color:rgba(255, 255, 255, 0.5)">
+                            <option value="Seleccionar">Seleccionar equipo</option>
+                            <option value="EquipoACS">Equipo de ACS</option>
+                            <option value="Calefaccion">Sólo calefacción</option>
+                            <option value="Refrigeracion">Sólo refrigeración</option>
+                            <option value="CalefaccionRefrigeracion">Calefacción y refrigeración</option>
+                            <option value="MixtoCalefaccionACS">Equipo mixto de calefacción y ACS</option>
+                            <option value="MixtoFrioCalefaccionACS">Equipo mixto de refrigeración, calefacción y ACS</option>
+                        </Select>
+
+                    </div>
+                    <div class="mb-2 text-black">
+                        <label>Tipo de equipo</label>
+                    </div>
+                    <div class="mb-2">
+                        <Select class="form-select form-control" placeholder="Seleccione un tipo de equipo" style="z-index:99;background-color:rgba(255, 255, 255, 0.5)">
+                            <option value="Seleccionar">Seleccionar tipo de equipo</option>
+                            <option value="CalderaEst">Caldera estándar</option>
+                            <option value="CalderaCond">Caldera de condensación</option>
+                            <option value="CalderaBajaTemp">Caldera de baja temperatura</option>
+                            <option value="BombaDeCalor">Bomba de calor</option>
+                            <option value="EfectoJoule">Efecto Joule</option>
+                        </Select>
+                    </div>
+                    <div class="mb-2 text-black">
+                        <label>Tipo de combustible</label>
+                    </div>
+                    <div class="mb-2">
+                        <Select class="form-select form-control" placeholder="Seleccione un tipo de combustible" style="z-index:99;background-color:rgba(255, 255, 255, 0.5)">
+                            <option value="Seleccionar">Seleccionar combustible</option>
+                            <option value="GasNatural">Gas natural</option>
+                            <option value="Gasoleo">Gasóleo C</option>
+                            <option value="Electricidad">Electricidad</option>
+                            <option value="GLP">GLP</option>
+                            <option value="Carbon">Carbón</option>
+                            <option value="Biocarb">Biocarburante</option>
+                            <option value="BiomasaNoDens">Biomasa no densificada</option>
+                            <option value="Pelets">Biomasa densificada (pelets)</option>
+                        </Select>
+                    </div>
+                    <div class="mb-2 text-black">
+                        <label>Rendimiento nominal</label>
+                    </div>
+                    <div class="mb-2">
+                        <Input class="form-control" style="background-color:rgba(255, 255, 255, 0.5)" placeholder="Rendimiento" id="RendimientoEquipo">
+                    </div>
+                    <div class="mb-2 text-black">
+                        <label>Aislamiento de la caldera</label>
+                    </div>
+                    <div class="mb-2">
+                        <Select class="form-select form-control" placeholder="Indique las condiciones del aislamiento" style="z-index:99;background-color:rgba(255, 255, 255, 0.5)">
+                            <option value="Seleccionar">Seleccionar aislamiento</option>
+                            <option value="SinAislar">Caldera antigua con mal aislamiento</option>
+                            <option value="MedioAislada">Antigua con aislamiento medio</option>
+                            <option value="BienAislada">Bien aislada y mantenida</option>
+                            <option value="NoAislamiento">Sin aislamiento</option>
+                        </Select>
+                    </div>
+                    <div class="mb-2 text-black">
+                        <label>Antigüedad de la caldera</label>
+                    </div>
+                    <div class="mb-2">
+                        <Select class="form-select form-control" placeholder="Seleccione antigüedad del equipo" style="z-index:99;background-color:rgba(255, 255, 255, 0.5)">
+                            <option value="Seleccionar">Seleccione antigüedad del equipo</option>
+                            <option value="Anterior">Anterior a 1994</option>
+                            <option value="NBE-CT-79">Entre 1994 y 2013</option>
+                            <option value="CTE2006">Posterior a 2013</option>
+                        </Select>
+                    </div>
+                    <div class="mb-2 text-black">
+                        <label>% cubierto de la demanda</label>
+                    </div>
+                    <div class="mb-2">
+                        <Input class="form-control" style="background-color:rgba(255, 255, 255, 0.5)" placeholder="% cubierto de la demanda" id="PorcentajeDemanda">
+                    </div>
+                </Content>
+            </AccordionItem>
+            <AccordionItem Title="Contribuciones energéticas">
+                <Content>
+
+                </Content>
+            </AccordionItem>
+            @*         </EditForm> *@
+        </Accordion>
+    </div>
+</div>
+
+@code {
+    private bool HaCargado { get; set; } = false;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            HaCargado = true;
+            StateHasChanged();
+        }
+    }
+}

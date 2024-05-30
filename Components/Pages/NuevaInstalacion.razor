@@ -1,0 +1,248 @@
+﻿@page "/"
+@using FrontBlazor.Components.Models
+@using FrontBlazor.Components.Services
+@using FrontBlazor.Components.Extensions
+@using FrontBlazor.Components.Layout
+@rendermode InteractiveServer
+
+
+<PageTitle>Nueva instalación</PageTitle>
+
+<DropDown />
+
+@* <nav class="navbar navbar-expand-lg" style="z-index:1; background:linear-gradient(270deg, rgba(255,255,255,1) 0%, rgba(254,249,136,1) 100%); background-size:cover">
+    <a class="navbar-brand" href="#">SolarSoft</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button> *@
+@*     <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+        <div class="navbar-nav">
+            <a class="nav-item nav-link" href="/">Nueva Instalación</a>
+            <a class="nav-item nav-link" href="/nuevoPanel">Nuevo Panel</a>
+            <a class="nav-item nav-link" href="/mapa">Mapa</a>
+        </div>
+    </div> *@
+@* </nav> *@
+@if (Enviado)
+{
+    <div class="alert alert-success">Se han realizado los cálculos y guardado correctamente</div>
+}
+@if (CoordenadasInvalidas)
+{
+    <div class="alert alert-danger">Las coordenadas indicadas no son válidas. Se encuentran en una zona de mar</div>
+}
+
+
+<div class="row text-black" style="z-index:1; background-color:rgba(240,240,240,1); background-size:cover">
+    <div class="col-3">
+        @if (MenuCargado)
+        {
+            <Menu></Menu>
+        }
+    </div>
+    <div class="col-3 mt-2">
+        <h2 style="text-align: center">SolarSoft</h2>
+        <br />
+        <p style="text-align:center">Solarsoft es un software de asistencia al diseño de instalaciones fotovoltaicas. </p>
+        <br />
+        <p style="text-align:center">SolarSoft realiza una estimación de la energía producida por una instalación de paneles fotovoltaicos a partir de los parámetros del terreno y la localización de ésta.</p>
+        <br />
+        <p style="text-align: center">Las estimaciones obtenidas mediante esta herramienta no son definitivas, y están sujetas a posibles cambios luego de la realización de un estudio local in situ</p>
+        <br />
+        <p style="text-align: center">Si desea obtener más información sobre el uso de Solarsoft, o tiene dudas sobre su instalación, puede contactarnos a través de nuestra dirección de correo electrónico:</p>
+        <br />
+        <p style="text-align:center">soporte@solutions30.com</p>
+        <p></p>
+    </div>
+    <div class="col-1"></div>
+    <div class="col-4 text-secondary mt-2">
+        <EditForm Model="Instalacion" FormName="Terreno" OnSubmit="Calcular">
+            <DataAnnotationsValidator />
+
+            <div class="mb-4 text-black">
+                <h2 style="text-align:center">Nueva Instalación</h2>
+            </div>
+
+            <div class="mb-3">
+                <InputSelect class="form-select form-control" placeholder="Seleccione un panel" style="z-index:99;background-color:rgba(255, 255, 255, 0.5)" @bind-Value="Instalacion.ModeloPanel">
+                    <option value="Modelo de Panel" selected>Modelo de Panel</option>
+                    @foreach (Panel panel in PanelService.GetPaneles())
+                    {
+                        <option value="@panel.Id">@panel.NombreModelo</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="mb-3">
+                <InputSelect class="form-select form-control" placeholder="Seleccione un modelo de batería" style="z-index:99;background-color:rgba(255, 255, 255, 0.5)" @bind-Value="Bateria.Id">
+                    <option value="Modelo de Bateria" selected>Modelo de batería</option>
+                    @foreach (Bateria bateria in BateriaService.GetBaterias())
+                    {
+                        <option value="@bateria.Id">@bateria.ModeloBateria</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="mb-2 text-black">
+                <label>Patrón</label>
+            </div>
+            <div class="mb-3">
+                <InputSelect class="form-select form-control" placeholder="Seleccione un modelo de batería" style="z-index:99;background-color:rgba(255, 255, 255, 0.5)" @bind-Value="Patron">
+                    <option value="Modelo de Patron">Modelo de patrón</option>
+                    @foreach (string patron in BateriaService.GetPatrones().Keys)
+                    {
+                        <option value="@patron">@patron</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="mb-2 text-black">
+                <label>Consumo mensual</label>
+            </div>
+            <div class="mb-2">
+                <InputNumber class="form-control  " style="background-color:rgba(255, 255, 255, 0.5)" placeholder="Consumo mensual" id="ConsumoMensual" @bind-Value="Bateria.ConsumoMensual" />
+                <br>
+            </div>
+            <div class="mb-3 text-black">
+                <h4 style="text-align:center">Parámetros de la ubicación</h4>
+            </div>
+
+            <div class="mb-2 text-black">
+                <label>Latitud</label>
+            </div>
+            <div class="mb-2">
+                <InputNumber class="form-control" style="background-color:rgba(255, 255, 255, 0.5);z-index:auto; !important" placeholder="Latitud" id="Latitud" @bind-Value="Instalacion.Latitud" />
+                <ValidationMessage style="z-index:auto; !important" For="()=> Instalacion.Latitud" />
+                <br>
+            </div>
+            <div class="mb-2 text-black">
+                <label>Longitud</label>
+            </div>
+            <InputNumber class="form-control " style="z-index:auto; background-color:rgba(255, 255, 255, 0.5); z-index:99" placeholder="Longitud" id="Longitud" @bind-Value="Instalacion.Longitud" />
+            <br>
+            <ValidationMessage For="()=> Instalacion.Longitud" style="z-index:auto;" />
+            <div class="mb-3 text-black">
+                <h4 style="text-align:center">Parámetros del terreno</h4>
+            </div>
+            <div class="mb-2 text-black">
+                <label>Largo del terreno</label>
+            </div>
+            <div class="mb-2">
+                <InputNumber class="form-control  " style="background-color:rgba(255, 255, 255, 0.5)" placeholder="Largo del terreno" id="LargoTerreno" @bind-Value="Instalacion.LargoTerreno" />
+                <br>
+                <ValidationMessage For="(()=> Instalacion.LargoTerreno)" />
+            </div>
+            <div class="mb-2 text-black">
+                <label>Ancho del terreno</label>
+            </div>
+            <div class="mb-2 text-black">
+                <InputNumber class="form-control" style="background-color:rgba(255, 255, 255, 0.5)" id="AnchoTerreno" @bind-Value="Instalacion.AnchoTerreno" />
+                <br>
+                <ValidationMessage For="(()=> Instalacion.AnchoTerreno)" />
+            </div>
+            <div class="mb-3 text-black">
+                <h4 style="text-align:center">Parámetros de la posición</h4>
+            </div>
+            <div class="mb-2 text-black">
+                <label>Ángulo de Azimuth</label>
+            </div>
+            <div class="mb-2">
+                <InputNumber class="form-control  " style="background-color:rgba(255, 255, 255, 0.5)" placeholder="Azimuth" id="Azimuth" @bind-Value="Instalacion.Azimuth" />
+                <br>
+                <ValidationMessage For="(()=> Instalacion.Azimuth)" />
+            </div>
+            <div class="mb-2">
+                <InputCheckbox id="Cargador" name="CargadorEV" class="form-checkbox" @bind-Value="Instalacion.CargadorSeleccionado" />
+                <label class="custom-control-label" for="Estructura">Incluir cargador EV</label>
+            </div>
+            <div class="mb-2">
+                <InputNumber class="form-control" style="background-color:rgba(255, 255, 255, 0.5)" placeholder="Potencia del cargador" id="PotenciaCargador" @bind-Value="PotenciaCargador" />
+            </div>
+
+            <div class="mb-2">
+                <InputCheckbox id="Estructura" name="Montaje" class="form-checkbox" @bind-Value="Instalacion.InstalacionEstructura" />
+                <label class="custom-control-label" for="Estructura">Montaje sobre estructura</label>
+            </div>
+            <div class="mt-5">
+                <button type="submit" class="btn btn-dark btn-outline-warning">Calcular</button>
+            </div>
+
+        </EditForm>
+    </div>
+
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    public Bateria? Bateria { get; set; }
+
+    [SupplyParameterFromForm]
+    public Terreno? Instalacion { get; set; }
+
+    [SupplyParameterFromForm]
+    public double PotenciaCargador { get; set; }
+
+    [SupplyParameterFromForm]
+    private string Patron { get; set; }
+
+    [Inject]
+    private ITerrenoService? TerrenoService { get; set; }
+
+    [Inject]
+    public IPanelService? PanelService { get; set; }
+
+    [Inject]
+    private ObjectTransporter? ObjectTransporter { get; set; }
+
+    [Inject]
+    private NavigationManager? Redireccionador { get; set; }
+    [Inject]
+    private IBateriaService? BateriaService { get; set; }
+
+    private bool CoordenadasInvalidas { get; set; } = false;
+
+    private bool Enviado { get; set; }
+
+    private bool MenuCargado { get; set; } = false;
+
+    protected override void OnInitialized()
+    {
+        Instalacion ??= new() { Id = 0, };
+        Bateria ??= new() { };
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            MenuCargado = true;
+        }
+        base.OnAfterRender(firstRender);
+    }
+
+    private void Calcular()
+    {
+        HttpClient pvgis = new HttpClient();
+        var response = pvgis.GetAsync($"https://re.jrc.ec.europa.eu/api/PVcalc?lat={Instalacion.Latitud.ToString().Replace(",", ".")}&lon={Instalacion.Longitud.ToString().Replace(",", ".")}&peakpower=1&loss=14").Result;
+        if (response.IsSuccessStatusCode)
+        {
+            // Instalacion.ModeloPanel = PanelService.GetPanel(Instalacion.ModeloPanelId);
+            var resultado = TerrenoService.PostTerreno(Instalacion);
+            if (resultado != null)
+            {
+                Enviado = true;
+                ObjectTransporter.AddData("Resultado", resultado);
+                ObjectTransporter.AddData("Bateria", Bateria);
+                ObjectTransporter.AddData("Patron", Patron);
+                ObjectTransporter.AddData("PotenciaCargador", PotenciaCargador);
+                Redireccionador.NavigateTo($"/graficoEnergia");
+            }
+            else
+            {
+                Enviado = false;
+            }
+        }
+        else
+        {
+            CoordenadasInvalidas = true;
+        }
+    }
+}
+
