@@ -1,0 +1,471 @@
+﻿@page "/graficoEnergia"
+@using FrontBlazor.Components.Extensions
+@using FrontBlazor.Components.Models
+@using FrontBlazor.Components.Services
+@using FrontBlazor.Components.Layout
+@using Newtonsoft.Json.Linq
+@rendermode InteractiveServer
+<DropDown />
+@if (Error)
+{
+    <div class="row">
+        <div class="alert alert-danger mt-4">Los datos introducidos son erróneos. Revise de nuevo la ubicación e inténtelo otra vez.</div>
+    </div>
+}
+@if (!Error)
+{
+    <div class="row" style=" z-index:1; background-color:rgba(240,240,240,1); background-size:cover">
+        <h3 style="font-weight:bold;text-align:center; background-color:rgba(240,240,240,1); background-size:cover">Resultados de la simulación</h3>
+    </div>
+
+    <div class="row" style=" z-index:1; background-color:rgba(240,240,240,1); background-size:cover;min-height:84vh">
+        <div class="row d-flex align-items-center">
+            <div class="col-sm-6 align-items-lg-start">
+                <center>
+                    <select @onchange="CambiaGrafica" class="form-select" style="width:25%">
+                        <option value="Seleccionar">Seleccionar inclinación</option>
+                        <option value="0º">0º</option>
+                        <option value="15º">15º</option>
+                        <option value="30º">30º</option>
+                    </select>
+                </center>
+            </div>
+            <div class="col-sm-2">
+
+            </div>
+            <div class="col-sm-4">&nbsp;</div>
+        </div>
+        <div class="col-sm-4">
+            <BarChart @ref="graficaEnergia"></BarChart>
+            <div class="row">
+                <div class="col-sm-6">
+
+                </div>
+                <div class="col-sm-6">
+                    <h4 style="font-weight: bold;text-align:center;color:rgb(80,22,0)"><i class="bi bi-cloud-check-fill"></i></h4>
+                    <h5 style="font-weight: bold;text-align:center;color:rgb(80,22,0)">@co2 Tm CO2</h5>
+
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <BarChart @ref="graficaIrradiacion"></BarChart>
+            <div class="row">
+                <div class="col-sm-6">
+                    <h4 style="font-weight: bold;text-align:center;color:rgb(0,80,30)"><i class="bi bi-tree-fill"></i></h4>
+                    <h5 style="font-weight: bold;text-align:center;color:rgb(0,80,30)">@arboles Árboles/año</h5>
+
+                </div>
+                <div class="col-sm-6">
+                    <h4 style="font-weight: bold;text-align:center;color:rgb(80,90,0)"><i class="bi bi-lightning-charge"></i></h4>
+                    <h5 style="font-weight: bold;text-align:center;color:rgb(80,90,0)">@media kWh/mes</h5>
+
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <BarChart @ref="chartBateria"></BarChart>
+            <div class="row">
+                <div class="col-sm-6">
+                    <h4 style="font-weight: bold;text-align:center;color:rgb(0,50,120)"><i class="bi bi-lightning-charge-fill"></i></h4>
+                    <h5 style="font-weight: bold;text-align:center;color:rgb(0,50,120)">@anual MWh/año</h5>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+}
+
+@code {
+    [Inject]
+    public ObjectTransporter ObjectTransporter { get; set; }
+
+    [Inject]
+    private ITerrenoService? TerrenoService { get; set; }
+
+    [Inject]
+    private IBateriaService BateriaService { get; set; }
+
+    private HttpClient client { get; set; }
+
+    private Terreno? Instalacion { get; set; }
+
+    public double PotenciaCargador { get; set; }
+
+    private Bateria? Bateria { get; set; }
+
+    private double[] PatronConsumo { get; set; }
+
+    private bool Error { get; set; } = false;
+
+    private BarChart chartBateria = default!;
+
+    private BarChart graficaEnergia = default!;
+
+    private BarChart graficaIrradiacion = default!;
+
+    private double media { get; set; } = default!;
+
+    private double anual { get; set; } = default!;
+
+    private double co2 { get; set; } = default!;
+
+    private double arboles { get; set; } = default!;
+
+    private ChartData chartData { get; set; }
+
+    bool graficaIniciada = false;
+
+    double[] displayExcedente = null;
+
+    double[] displaycarga = null;
+
+    double[] displayconsumo = null;
+
+    protected override void OnInitialized()
+    {
+        client = new HttpClient()
+            {
+                BaseAddress = new Uri("https://localhost:7060/api/Terreno/")
+            };
+        Instalacion = (Terreno)ObjectTransporter.RetrieveData("Resultado");
+        var bateriaSeleccionada = (Bateria)ObjectTransporter.RetrieveData("Bateria");
+        string patronSelecionado = (string)ObjectTransporter.RetrieveData("Patron");
+        PotenciaCargador = (double)ObjectTransporter.RetrieveData("PotenciaCargador");
+        PatronConsumo = BateriaService.GetPatron(patronSelecionado);
+        Bateria = BateriaService.GetBateria(bateriaSeleccionada.Id);
+        displayExcedente = CalculoExcedente(bateriaSeleccionada.ConsumoMensual);
+        displaycarga = CargaBateria(displayExcedente, Bateria.Capacidad,ConsumosHorarios(bateriaSeleccionada.ConsumoMensual,PotenciaCargador));
+        displayconsumo = ConsumosHorarios(bateriaSeleccionada.ConsumoMensual, PotenciaCargador);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        Instalacion.AnguloEstructura = 0;
+        var response = client.GetAsync($"getPotenciaTotal/{Instalacion.Id}/{Instalacion.ModeloPanel}").Result;
+        if (response.IsSuccessStatusCode)
+        {
+            var potencia = response.Content.ReadAsStringAsync().Result;
+            Instalacion.PotenciaTotal = double.Parse(potencia.Replace(".", ","));
+        }
+        var datos = TerrenoService.GetDataPVGIS(Instalacion);
+        await RenderizarGraficaEnergia(graficaEnergia, datos, "rgb(0,180,0)", 0, false);
+        await RenderizarGraficaIrradiacion(graficaIrradiacion, datos, "rgb(0,255,0)", false);
+        await RenderizarGraficaBateria(chartBateria, displayExcedente, displaycarga,displayconsumo,175);
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async void CambiaGrafica(ChangeEventArgs e)
+    {
+        string nuevoColor = string.Empty;
+        switch (e.Value.ToString())
+        {
+            case "0º":
+                Instalacion.AnguloEstructura = 0;
+                nuevoColor = "rgb(131,231,74)";
+                break;
+            case "15º":
+                Instalacion.AnguloEstructura = 15;
+                nuevoColor = "rgb(167,74,231)";
+                break;
+            case "30º":
+                Instalacion.AnguloEstructura = 30;
+                nuevoColor = "rgb(74,143,231)";
+                break;
+        }
+        var response = client.GetAsync($"getPotenciaTotal/{Instalacion.Id}/{Instalacion.ModeloPanel}").Result;
+        if (response.IsSuccessStatusCode)
+        {
+            var potencia = response.Content.ReadAsStringAsync().Result;
+            Instalacion.PotenciaTotal = double.Parse(potencia.Replace(".", ","));
+        }
+        var datos = TerrenoService.GetDataPVGIS(Instalacion);
+        await RenderizarGraficaEnergia(graficaEnergia, datos, nuevoColor, 0, true);
+        await RenderizarGraficaIrradiacion(graficaIrradiacion, datos, nuevoColor, true);
+        StateHasChanged();
+    }
+
+    #region Generación de gráficas
+
+    private async Task RenderizarGraficaEnergia(BarChart graficaObjetivo, string datos, string color, int angulo, bool yaIniciada)
+    {
+        List<double> energia = new List<double>();
+        if (datos != null)
+        {
+            var json = JObject.Parse(datos);
+            var valores = json.SelectToken("outputs").SelectToken("monthly").SelectTokens("fixed").Cast<JArray>();
+
+            media = (double)json.SelectToken("outputs").SelectToken("totals").SelectToken("fixed").SelectToken("E_m");
+            anual = Math.Round(((double)json.SelectToken("outputs").SelectToken("totals").SelectToken("fixed").SelectToken("E_y"))*1.05 / 1000, 2);
+            co2 = Math.Round(Convert.ToDouble(anual) * 0.4, 2);
+            arboles = Math.Round(co2 * 45, 0);
+
+            var mediaMensual = json.SelectToken("outputs").SelectToken("totals").SelectToken("fixed").SelectToken("E_m");
+
+            foreach (var valor in valores)
+            {
+                foreach (var parametro in valor)
+                {
+                    energia.Add(double.Parse(parametro.SelectToken("E_m").ToString()));
+                }
+            }
+            energia.Add(Convert.ToDouble(mediaMensual));
+
+            var data = new ChartData
+                {
+                    Labels = new List<string> { "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio",
+             "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre", "Media" },
+                    Datasets = new List<IChartDataset>()
+         {
+             new BarChartDataset()
+             {
+                 Label = "Energía (kWh)",
+                 Data = energia,
+                 BackgroundColor = new List<string>{ color },
+                 CategoryPercentage = 0.8,
+                 BarPercentage = 1,
+             }
+         }
+
+                };
+
+            var options = new BarChartOptions();
+
+            options.Interaction.Mode = InteractionMode.Index;
+
+            options.Plugins.Title!.Text = "Estimación mensual " + angulo + "º";
+            options.Plugins.Title.Display = true;
+            options.Plugins.Title.Font!.Size = 20;
+            options.Plugins.Legend.Display = true;
+
+            options.Responsive = true;
+
+            options.Scales.X!.Title!.Text = "Mes";
+            options.Scales.X.Title.Display = true;
+
+            options.Scales.Y!.Title!.Text = "Energía generada";
+            options.Scales.Y.Title.Display = true;
+
+            if (yaIniciada)
+            {
+                await graficaObjetivo.UpdateAsync(data, options);
+            }
+            else
+            {
+                await graficaObjetivo.InitializeAsync(data, options);
+            }
+        }
+        else
+        {
+            Error = true;
+        }
+    }
+
+    private async Task RenderizarGraficaIrradiacion(BarChart chartObjetivo, string datos, string color, bool yaIniciada)
+    {
+        List<double> irradiacion = new List<double>();
+        if (datos != null)
+        {
+            datos = datos.Replace("H(i)_m", "Him");
+            var json = JObject.Parse(datos);
+            var valores = json.SelectToken("outputs").SelectToken("monthly").SelectTokens("fixed").Cast<JArray>();
+            foreach (var valor in valores)
+            {
+                foreach (var parametro in valor)
+                {
+                    irradiacion.Add(double.Parse(parametro.SelectToken("Him").ToString()));
+                }
+            }
+
+            var data = new ChartData
+                {
+                    Labels = new List<string> {"Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio",
+             "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" },
+                    Datasets = new List<IChartDataset>()
+        {
+            new BarChartDataset()
+            {
+                Label = "Irradiación (W/m^2)",
+                Data = irradiacion,
+                BackgroundColor = new List<string>{ color },
+                CategoryPercentage = 0.8,
+                BarPercentage = 1,
+            }
+        }
+                };
+
+            var options = new BarChartOptions();
+
+            options.Interaction.Mode = InteractionMode.Index;
+
+            options.Plugins.Title!.Text = "Irradiancia mensual estimada";
+            options.Plugins.Title.Display = true;
+            options.Plugins.Title.Font!.Size = 20;
+
+            options.Responsive = true;
+
+            options.Scales.X!.Title!.Text = "Mes";
+            options.Scales.X.Title.Display = true;
+
+            options.Scales.Y!.Title!.Text = "Total";
+            options.Scales.Y.Title.Display = true;
+
+            if (yaIniciada)
+            {
+                await chartObjetivo.UpdateAsync(data, options);
+            }
+            else
+            {
+                await chartObjetivo.InitializeAsync(data, options);
+            }
+
+        }
+        else
+        {
+            Error = true;
+        }
+    }
+
+    private async Task RenderizarGraficaBateria(BarChart chartObjetivo, double[] excedente, double[] carga,double[] consumo, int yColor)
+    {
+        var data = new ChartData
+            {
+                Labels = new List<string> {"00:00", "01:00", "02:00", "03:00", "04:00", "05:00",
+             "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
+            "12:00", "13:00", "14:00", "15:00", "16:00", "17:00",
+            "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"},
+                Datasets = new List<IChartDataset>()
+        {
+            new BarChartDataset()
+            {
+                Label = "Excedente (kWh)",
+                Data = excedente.ToList(),
+                BackgroundColor = new List<string>{ "rgb(0,0,"+yColor+")" },
+                CategoryPercentage = 0.8,
+                BarPercentage = 1,
+            },
+            new BarChartDataset()
+            {
+                Label = "Carga Batería (kWh)",
+                Data = carga.ToList(),
+                BackgroundColor = new List<string>{ "rgb(0,220,0)" },
+                CategoryPercentage = 0.8,
+                BarPercentage = 1,
+            },
+            new BarChartDataset()
+            {
+                Label = "Consumo (kWh)",
+                Data = consumo.ToList(),
+                BackgroundColor = new List<string>{ "rgb("+220+",0,0)" },
+                CategoryPercentage = 0.8,
+                BarPercentage = 1,
+            }
+        }
+            };
+
+        var options = new BarChartOptions();
+
+        options.Interaction.Mode = InteractionMode.Index;
+
+        options.Plugins.Title!.Text = "Excedentes y carga de la batería";
+        options.Plugins.Title.Display = true;
+        options.Plugins.Title.Font!.Size = 20;
+
+        options.Responsive = true;
+
+        options.Scales.X!.Title!.Text = "Hora";
+        options.Scales.X.Title.Display = true;
+
+        options.Scales.Y!.Title!.Text = "Energía (kWh)";
+        options.Scales.Y.Title.Display = true;
+
+
+        await InvokeAsync(StateHasChanged);
+        await chartObjetivo.InitializeAsync(data, options);
+
+    }
+
+    #endregion
+
+    #region Cálculos batería
+
+    private double[] CalculoExcedente(double ConsumoMensual)
+    {
+        double[] EnergiaDiaria = new double[24];
+        double[] ArrayProduccionSolar = new double[24];
+        ArrayProduccionSolar = BateriaService.GetPatron("Producción del panel");
+        for (int i = 0; i < ArrayProduccionSolar.Length; i++)
+        {
+            EnergiaDiaria[i] = ArrayProduccionSolar[i] * Convert.ToDouble(Instalacion.PotenciaTotal);
+        }
+        double[] ArrayConsumo = PatronConsumo;
+        double[] ConsumoHorario = new double[24];
+
+        for (int i = 0; i < ArrayConsumo.Length; i++)
+        {
+            ConsumoHorario[i] = ArrayConsumo[i] * (ConsumoMensual / 30);
+        }
+
+        double[] Excedente = new double[24];
+
+        for (int i = 0; i < EnergiaDiaria.Length; i++)
+        {
+            double resta = EnergiaDiaria[i] - ConsumoHorario[i];
+            Excedente[i] = (resta < 0) ? 0 : resta;
+        }
+        return Excedente;
+    }
+    private double[] CargaBateria(double[] Excedente, double CapacidadBateria, double[] ConsumoHorario)
+    {
+        double CargaHora;
+        double[] PorcentajesCarga = new double[24];
+        PorcentajesCarga = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        for (int i = 0; i < Excedente.Length; i++)
+        {
+            if (i != 0)
+            {
+                PorcentajesCarga[i] = Excedente[i]+PorcentajesCarga[i-1];
+                if (PorcentajesCarga[i] >= CapacidadBateria)
+                {
+                    PorcentajesCarga[i] = CapacidadBateria;
+                }
+                if (Excedente[i] == 0)
+                {
+                    PorcentajesCarga[i] = PorcentajesCarga[i - 1] - (ConsumoHorario[i]);
+                    if (PorcentajesCarga[i] <= 0)
+                    {
+                        PorcentajesCarga[i] = 0;
+                    }
+                }
+            }
+            else
+            {
+
+            }
+
+
+        }
+        return PorcentajesCarga;
+    }
+    private double[] ConsumosHorarios(double ConsumoMensual, double PotenciaCargador)
+    {
+        double[] ArrayConsumo = PatronConsumo;
+        double[] ConsumoHorario = new double[24];
+
+        for (int i = 0; i < ArrayConsumo.Length; i++)
+        {
+
+            if(i<6 || i > 22)
+            {
+                ConsumoHorario[i] = ArrayConsumo[i] * (ConsumoMensual / 30) + PotenciaCargador;
+            }
+            else
+                ConsumoHorario[i] = ArrayConsumo[i] * (ConsumoMensual / 30);
+            
+        }
+        return ConsumoHorario;
+    }
+    #endregion
+}

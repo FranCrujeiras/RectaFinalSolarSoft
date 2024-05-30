@@ -1,0 +1,690 @@
+﻿@page "/mapa"
+@using FrontBlazor.Components.Models
+@using FrontBlazor.Components.Services
+@using FrontBlazor.Components.Extensions
+@using FrontBlazor.Components.Layout
+@using FrontBlazor.Components.Services
+@rendermode InteractiveServer
+
+<PageTitle>Mapa</PageTitle>
+<div class="row d-flex">
+    <DropDown />
+    <br />
+</div>
+
+
+<div class="row">
+    @*@<div class="col-sm-2">
+    <Sidebar @ref="sidebar"
+    IconName="IconName.SunFill"
+    Title="SolarSoft"
+    DataProvider="SidebarDataProvider"
+    Style="font-weight:bolder; background-color: rgba(30,30,30,0.5)" />
+
+    </div> *@
+    <div class="col-sm-2" style="height:92vh;overflow-y:scroll">
+        <center>
+            <div style="width:85%">
+                <label for="queryTbx">Introducir dirección:</label>
+                <br />
+                <input id="queryTbx" class="form-control">
+                <button id="marcaArea" style="background-color:dimgrey;color:white" class="form-control mt-2">Marcar área</button>
+                <input type="button" style="background-color:dimgrey;color:white" id="generador" value="Insertar paneles" class="form-control mt-1" />
+                <button id="dibujaString" style="background-color:dimgrey;color:white" disabled class="form-control mt-2">Crear strings</button>
+                <button id="limpiaStrings" style="background-color:maroon;color:white" disabled class="form-control mt-2">Limpiar strings</button>
+                <button id="deshacerString" style="background-color:orange;color:white" disabled class="form-control mt-2 bi-plus-square-fill-nav-menu">Deshacer string</button>
+                <label class="mb-2">Modelo de panel</label>
+                <select id="paneles" class="form-control mt-1">
+                    <option w="2.772" h="1.134" pwr="0.55" vol="42.5">Panel 1</option>
+                    <option w="2.5" h="1.134" pwr="0.42" vol="42.2">Panel 2</option>
+                    <option w="2.32" h="1.134" pwr="0.32" vol="43.1">Panel 3</option>
+                </select>
+
+                <EditForm Model="InstalacionMapa" FormName="TerrenosMapa" OnSubmit="ProcesarDatos">
+                    <label class="form-label mt-1">Coordenadas</label>
+                    <InputText class="form-control mt-1" readonly id="area" @bind-Value="Coordenadas" />
+
+
+                    <label class="form-label mt-1">Potencia total</label>
+                    <InputText class="form-control mt-1" type="number" readonly id="totalPotencia" @bind-Value="PotenciaTotal" />
+
+                    <label class="form-label mt-1">Azimuth</label>
+                    <InputText readonly Id="azimuth" class="form-control mt-1" placeholder="Azimuth" @bind-Value="Azimuth" />
+                    <div class="row">
+                        <div class="col-5">
+                            <button class="form-control mt-1" style="text-align:center;background-color:maroon;color:white" Id="menos90grados" placeholder="-90º">-90º</button>
+                        </div>
+                        <div class="col-2">
+                        </div>
+                        <div class="col-5">
+                            <button class="form-control mt-1" style="text-align:center;background-color:forestgreen;color:white" Id="mas90grados" placeholder="+90º">+90º</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <button type="submit" class="btn btn-dark btn-outline-warning id="calculo">Calcular</button>
+                    </div>
+                </EditForm>
+
+                Drag Method:
+                <input type="radio" name="DragMethodRadio" value="Geo" checked="checked" onclick="setDragMethod(this)" /> Geo
+                <br />
+                <label class="form-label mt-1">Área</label>
+                <input type="text" class="form-control mt-1" readonly id="areaTotal" />
+
+                <label class="form-label mt-1">Perímetro</label>
+                <input type="text" class="form-control mt-1" readonly id="perimetro" />
+                <label class="form-label mt-1">Modelo de inversor</label>
+                <select class="form-control mt-1" readonly id="inversores">
+                    <option pot="6" minV="140" maxV="850" strings="2">Huawei 3 KTL</option>
+                    <option pot="8" minV="140" maxV="850" strings="2">Huawei 4 KTL</option>
+                    <option pot="10" minV="140" maxV="850" strings="2">Huawei 5 KTL</option>
+                    <option pot="12" minV="140" maxV="850" strings="2">Huawei 6 KTL</option>
+                    <option pot="14.88" minV="140" maxV="850" strings="2">Huawei 8 KTL</option>
+                    <option pot="14.88" minV="140" maxV="850" strings="2">Huawei 10 KTL</option>
+                </select>
+                @*                 <select readonly id="inversores">
+                <option value="Modelo de inversor" selected>Modelo de inversor</option>
+                @foreach (Inversor inversor in InversorService.GetInversor())
+                {
+                <option value="@inversor.Id">@inversor.ModeloInversor</option>
+                }
+                </select> *@
+                <label class="form-label mt-1">Cantidad de inversores</label>
+                <input type="number" class="form-control mt-1" readonly id="totalInversores" />
+                <label class="form-label mt-1">Cantidad de strings</label>
+                <input type="number" class="form-control mt-1" readonly id="totalStrings" />
+                <input type="hidden" readonly Id="LargoPanel" class="form-control mt-1" placeholder="Largo del Panel" />
+                <input type="hidden" readonly Id="AnchoPanel" class="form-control mt-1" placeholder="Ancho del Panel" />
+                <input type="hidden" readonly Id="LongitudMapa" class="form-control mt-1" placeholder="Longitud" />
+
+                <label class="form-label mt-1">Número de paneles</label>
+                <input readonly id="totalPaneles" class="form-control mt-1" placeholder="Número de paneles" />
+            </div>
+        </center>
+    </div>
+    <div class="col-sm-10" style="padding:0;margin:0,0,0,0">
+        @if (HaCargado)
+        {
+            <script type='text/javascript' src='https://www.bing.com/api/maps/mapcontrol?callback=GetMap&branch=release&key=ApNN4MSIAG4iPTpntUVuk5AmyX8sE7jdwBGJVgpgixS02SQ36__RTZ6Aope431YN&setLang=es-ES&setMkt=es-ES' async defer></script>
+            <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css">
+
+            <script src="//code.jquery.com/jquery-1.12.4.js"></script>
+            <script src="//code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+            <script type="text/javascript">
+                var map, searchManager, dragManager, pin, tools, currentShape, panelSeleccionado;
+                var rotacion = 0;
+                var añadido = false;
+                var anchoReal = 999;
+                var altoReal = 999;
+                var panelesValidos = [];
+                var modoString = false;
+                let colores = ['purple', 'blue', 'green', 'brown', 'grey', 'pink', 'orange', 'black']
+                var colorActual = 'No';
+                var indiceString = 1;
+                var totalStrings = 0;
+                var voltajeAcumulado = 0;
+                var pinesActuales = [];
+                var pines = [];
+                var lineasActuales = [];
+                var lineas = [];
+                var stringsDibujados = [];
+                var stringActual = [];
+
+                function GetMap() {
+                    map = new Microsoft.Maps.Map('#myMap', {
+                        center: new Microsoft.Maps.Location(42.23282, -8.72264),
+                        mapTypeId: Microsoft.Maps.MapTypeId.aerial,
+                        zoom: 12,
+                        disableStreetside: true
+                    });
+                    Microsoft.Maps.loadModule(['Microsoft.Maps.AutoSuggest', 'Microsoft.Maps.Search'], function () {
+                        //Create instances of the Autosuggest and Search managers.
+                        var autosuggestManager = new Microsoft.Maps.AutosuggestManager({ map: map });
+                        searchManager = new Microsoft.Maps.Search.SearchManager(map);
+
+                        //Create a jQuery autocomplete UI widget.
+                        $('#queryTbx').autocomplete({
+                            minLength: 3,   //Don't ask for suggestions until atleast 3 characters have been typed.
+                            source: function (request, response) {
+                                //Get suggestions from the AutosuggestManager.
+                                autosuggestManager.getSuggestions(request.term, response);
+                            },
+                            select: function (event, ui) {
+                                //When a suggestion has been selected.
+
+                                //Check to see if the suggestion has a location value.
+                                if (ui.item.location) {
+                                    suggestionSelected(ui.item);
+                                } else {
+                                    geocodeSuggestion(ui.item);
+                                }
+                            }
+                        }).autocomplete('instance')._renderItem = function (ul, item) {
+                            //Format the displayed suggestion to show the formatted suggestion string.
+                            return $('<li>')
+                                .append('<a>' + item.formattedSuggestion + '</a>')
+                                .appendTo(ul);
+                        };
+                    });
+
+                    Microsoft.Maps.loadModule('Microsoft.Maps.DrawingTools', function () {
+                        tools = new Microsoft.Maps.DrawingTools(map);
+                    });
+
+                    Microsoft.Maps.registerModule('DraggableShapesModule', 'DraggableShapesModule.js');
+                    Microsoft.Maps.loadModule('DraggableShapesModule', function () {
+                        dragManager = new DraggableShapesManager(map);
+                        dragManager.makeDraggable(polygon);
+                    });
+                }
+
+                function setDragMethod(elm) {
+                    if (elm.value === 'Pixel') {
+                        dragManager.setDragMethod(DragMethod.pixel);
+                    } else {
+                        dragManager.setDragMethod(DragMethod.geo);
+                    }
+                }
+
+                function geocodeSuggestion(suggestion) {
+                    var searchRequest = {
+                        where: suggestion.formattedSuggestion,
+                        callback: function (r) {
+                            if (r && r.results && r.results.length > 0) {
+                                suggestion.location = r.results[0].location;
+                                suggestion.bestView = r.results[0].bestView;
+
+                                suggestionSelected(suggestion);
+                            }
+                        },
+                        errorCallback: function (e) {
+                            alert('Sin resultados');
+                        }
+                    };
+                    searchManager.geocode(searchRequest);
+                }
+
+                function suggestionSelected(suggestion) {
+                    map.entities.clear();
+                    $('#area').val(suggestion.location.latitude + ',' + suggestion.location.longitude);
+                    $('#area').text(suggestion.location.latitude + ',' + suggestion.location.longitude);
+                    map.setView({ center: suggestion.location, zoom: 20 });
+                }
+
+                $('#generador').bind('click', function () {
+                    $('#paneles').prop('disabled', true);
+                    $('#generador').prop('disabled', true);
+                    $('#limpiaStrings').prop('disabled', false);
+                    $('#deshacerString').prop('disabled', false);
+                    $('#calculo').prop('disabled', false);
+
+                    var locations = currentShape.getLocations();
+
+                    var minLat = 1000;
+                    var minLon = 1000;
+                    var maxLat = -1000;
+                    var maxLon = -1000;
+
+                    locations.forEach(function (location) {
+                        if (location.latitude < minLat) {
+                            minLat = location.latitude;
+                        }
+                        if (location.longitude < minLon) {
+                            minLon = location.longitude;
+                        }
+                        if (location.latitude > maxLat) {
+                            maxLat = location.latitude;
+                        }
+                        if (location.longitude > maxLon) {
+                            maxLon = location.longitude;
+                        }
+                    });
+
+                    var azimuth = Microsoft.Maps.SpatialMath.getHeading(locations[0], locations[1]);
+
+                    var width = $('#paneles').find(':selected').attr('w') / 111111.111111;
+                    var height = $('#paneles').find(':selected').attr('h') / 111111.111111;
+
+                    var offsetLat = minLat + height;
+                    var offsetLon = minLon + width;
+
+                    var polygon = new Microsoft.Maps.Polygon([
+                        [new Microsoft.Maps.Location(offsetLat, offsetLon),
+                        new Microsoft.Maps.Location(offsetLat - height, offsetLon),
+                        new Microsoft.Maps.Location(offsetLat - height, offsetLon - width),
+                        new Microsoft.Maps.Location(offsetLat, offsetLon - width)]]);
+                    Microsoft.Maps.SpatialMath.Geometry.rotate(polygon, azimuth);
+                    ObtenerOffsetReales(polygon);
+
+                    offsetLat = minLat + altoReal;
+                    offsetLon = minLon + anchoReal;
+
+                    while (offsetLat <= maxLat) {
+                        DibujaPoligono(offsetLat, offsetLon, width, height, azimuth)
+                        offsetLon += anchoReal;
+                        if (offsetLon >= maxLon) {
+                            offsetLon = minLon + anchoReal;
+                            offsetLat += altoReal;
+                        }
+                    }
+                    $('#totalPaneles').val(panelesValidos.length);
+                    $('#totalPotencia').val(panelesValidos.length * $('#paneles').find(':selected').attr('pwr'));
+                    var potenciaInversor = $('#totalPotencia').val() * 1.2;
+                    var potenciaObjetivo = 999999999;
+                    var inversorSeleccionado;
+                    var potenciaSeleccionado = 0;
+
+                    $('#inversores option').each(function () {
+                        var diferencial = potenciaInversor - $(this).attr('pot');
+                        if (diferencial >= 0 && diferencial <= potenciaObjetivo) {
+                            inversorSeleccionado = $(this).val();
+                            potenciaSeleccionado = $(this).attr('pot');
+                            potenciaObjetivo = diferencial;
+                        }
+                    });
+
+                    if (!isNaN(Math.round($('#totalPotencia').val() / potenciaSeleccionado)) && isFinite(Math.round($('#totalPotencia').val() / potenciaSeleccionado))) {
+                        $('#inversores').val(inversorSeleccionado).change();
+                        $('#totalInversores').val(Math.round($('#totalPotencia').val() / potenciaSeleccionado));
+                        $('#totalStrings').val($('#inversores').find(':selected').attr('strings') * $('#totalInversores').val());
+                    }
+                    else {
+                        $('#totalInversores').val(1);
+                        $('#inversores').val('Inversor 1');
+                        $('#totalStrings').val($('#inversores').find(':selected').attr('strings'));
+                    }
+                });
+
+                $('#dibujaString').bind('click', function () {
+                    if (totalStrings != $('#totalStrings').val()) {
+                        modoString = true;
+                        $(this).text('Finalizar (ESC)');
+                        $(this).css('color', 'red');
+                        $('#marcaArea').prop('disabled', true);
+                        var colorRandom = colores[Math.floor(Math.random() * colores.length)];
+                        while (colorActual == colorRandom) {
+                            colorRandom = colores[Math.floor(Math.random() * colores.length)];
+                        }
+                        colorActual = colorRandom;
+                    }
+                    else {
+                        alert('Se ha llegado al límite de Strings permitidos en la instalación');
+                    }
+                });
+
+                function DibujaPoligono(latitud, longitud, width, height, azimuth) {
+                    var polygon = new Microsoft.Maps.Polygon([
+                        [new Microsoft.Maps.Location(latitud, longitud),
+                        new Microsoft.Maps.Location(latitud - height, longitud),
+                        new Microsoft.Maps.Location(latitud - height, longitud - width),
+                        new Microsoft.Maps.Location(latitud, longitud - width)]]);
+                    Microsoft.Maps.SpatialMath.Geometry.rotate(polygon, azimuth);
+                    if (Microsoft.Maps.SpatialMath.Geometry.contains(currentShape, polygon)) {
+                        Microsoft.Maps.Events.addHandler(polygon, 'mouseup', function (e) {
+                            panelSeleccionado = polygon;
+                        });
+                        Microsoft.Maps.Events.addHandler(polygon, 'click', function (e) {
+                            if (modoString) {
+                                CreaString(polygon, colorActual);
+                            }
+                        });
+                        var style = {
+                            fillColor: 'yellow',
+                            strokeColor: 'orange',
+                            strokeThickness: 2
+                        };
+                        polygon.setOptions(style);
+                        dragManager.makeDraggable(polygon);
+                        map.entities.push(polygon);
+                        panelesValidos.push(polygon);
+                    }
+                    if (panelesValidos.length > 0) {
+                        $('#dibujaString').prop('disabled', false);
+                    }
+                }
+
+                function CreaString(polygon, colorActual) {
+                    console.log(voltajeAcumulado);
+                    if (parseFloat(voltajeAcumulado) + parseFloat($('#paneles').find(':selected').attr('vol')) > $('#inversores').find(':selected').attr('maxV')) {
+                        alert('Añadir más paneles excedería el voltaje permitido. Por favor, finalice el String');
+                    }
+                    else {
+                        if (polygon.metadata === undefined) {
+                            var style = {
+                                fillColor: colorActual,
+                                strokeColor: 'white',
+                                strokeThickness: 2
+                            };
+                            polygon.setOptions(style);
+                            var pin = new Microsoft.Maps.Pushpin(Microsoft.Maps.SpatialMath.Geometry.centroid(polygon), {
+                                icon: '<svg xmlns="https://www.w3.org/2000/svg" width="1" height="1"></svg>',
+                                title: '' + indiceString + ''
+                            });
+                            polygon.metadata = { label: pin };
+                            stringActual.push(polygon);
+                            indiceString++;
+                            map.entities.push(pin);
+                            pinesActuales.push(pin);
+                            if (pinesActuales.length > 1) {
+                                var lineVertices = new Array(Microsoft.Maps.SpatialMath.Geometry.centroid(pinesActuales[pinesActuales.length - 2]), Microsoft.Maps.SpatialMath.Geometry.centroid(pinesActuales[pinesActuales.length - 1]));
+                                var line = new Microsoft.Maps.Polyline(lineVertices, {
+                                    strokeColor: 'white',
+                                    strokeThickness: 3,
+                                });
+                                lineasActuales.push(line);
+                                map.entities.push(line);
+                            }
+                            voltajeAcumulado = parseFloat(voltajeAcumulado) + parseFloat($('#paneles').find(':selected').attr('vol'));
+                        }
+                    }
+                }
+
+                function ObtenerOffsetReales(polygon) {
+                    var minLatPanel = 1000;
+                    var minLonPanel = 1000;
+                    var maxLatPanel = -1000;
+                    var maxLonPanel = -1000;
+                    var locations = polygon.getLocations();
+                    locations.forEach(function (location) {
+                        if (location.latitude < minLatPanel) {
+                            minLatPanel = location.latitude;
+                        }
+                        if (location.longitude < minLonPanel) {
+                            minLonPanel = location.longitude;
+                        }
+                        if (location.latitude > maxLatPanel) {
+                            maxLatPanel = location.latitude;
+                        }
+                        if (location.longitude > maxLonPanel) {
+                            maxLonPanel = location.longitude;
+                        }
+                    });
+
+                    anchoReal = Math.abs(maxLonPanel - minLonPanel);
+                    altoReal = Math.abs(maxLatPanel - minLatPanel);
+                }
+
+                $('#marcaArea').bind('click', function () {
+                    if (currentShape != null) {
+                        map.entities.remove(currentShape);
+                        currentShape = null;
+                    }
+                    if (panelesValidos.length > 0) {
+                        map.entities.clear();
+                        panelesValidos = [];
+                    }
+                    drawPolygon();
+                    añadido = false;
+                    $(this).text('Finalizar (ESC)');
+                    $(this).css('color', 'red');
+                    $('#dibujaString').prop('disabled', true);
+                    $('#limpiaStrings').prop('disabled', true);
+                    $('#deshacerString').prop('disabled', true);
+                    $('#calculo').prop('disabled', true);
+                    $('#paneles').prop('disabled', false);
+                    $('#generador').prop('disabled', false);
+                });
+
+                $(document).keyup(function (e) {
+                    if (e.key === 'Escape') {
+                        if (!añadido) {
+                            tools.finish(currentShape);
+                            map.entities.push(currentShape);
+                            $('#marcaArea').text('Marcar área');
+                            $('#marcaArea').css('color', 'black');
+
+                            var area = Microsoft.Maps.SpatialMath.Geometry.area(currentShape, Microsoft.Maps.SpatialMath.AreaUnits.SquareMeters);
+                            var perimetro = Microsoft.Maps.SpatialMath.Geometry.calculateLength(currentShape, Microsoft.Maps.SpatialMath.DistanceUnits.Kilometers);
+                            area = Math.round(area * 100) / 100;
+                            perimetro = Math.round(perimetro * 100) / 100;
+
+                            $('#areaTotal').val(area + ' m²');
+                            $('#perimetro').val(perimetro + ' km');
+
+                            var locations = currentShape.getLocations();
+                            //El azimuth se calcula con la primera y última - 1 localización
+                            console.log(locations);
+
+                            var azimuth = Microsoft.Maps.SpatialMath.getHeading(locations[0], locations[1]);
+                            $('#azimuth').val(azimuth);
+
+                            añadido = true;
+                        }
+                        if (modoString) {
+                            if (parseFloat(voltajeAcumulado) < $('#inversores').find(':selected').attr('minV')) {
+                                alert('El string no llega al voltaje mínimo. Por favor, añada más paneles');
+                            }
+                            else {
+                                modoString = false;
+                                stringsDibujados.push(stringActual);
+                                pines.push(pinesActuales);
+                                lineas.push(lineasActuales);
+                                stringActual = [];
+                                pinesActuales = [];
+                                lineasActuales = [];
+                                indiceString = 1;
+                                voltajeAcumulado = 0;
+                                totalStrings++;
+                                $('#dibujaString').css('color', 'black');
+                                $('#dibujaString').text('Dibujar String');
+                                $('#marcaArea').prop('disabled', false);
+                            }
+                        }
+                    }
+                });
+
+                function drawPolygon() {
+                    var style = {
+                        fillColor: 'rgba(231,56,29,0.5)',
+                        strokeColor: 'red',
+                        strokeThickness: 1
+                    };
+                    tools.create(Microsoft.Maps.DrawingTools.ShapeType.polygon, function (s) {
+                        s.setOptions(style);
+                        currentShape = s;
+                    });
+                }
+
+                $('#limpiaStrings').bind('click', function () {
+                    panelesValidos.forEach(function (panel) {
+                        var style = {
+                            fillColor: 'yellow',
+                            strokeColor: 'orange',
+                            strokeThickness: 2
+                        };
+                        panel.setOptions(style);
+                        panel.metadata = undefined;
+                    });
+                    pines.forEach(function (pinsTarget) {
+                        pinsTarget.forEach(function (pinObjetivo) {
+                            map.entities.remove(pinObjetivo);
+                        });
+                    });
+                    lineas.forEach(function (lineasTarget) {
+                        lineasTarget.forEach(function (lineaObjetivo) {
+                            map.entities.remove(lineaObjetivo);
+                        });
+                    });
+                    stringsDibujados = [];
+                    pines = [];
+                    lineas = [];
+                    totalStrings = 0;
+                });
+
+                $('#deshacerString').bind('click', function () {
+                    var stringDeshacer = stringsDibujados[stringsDibujados.length - 1];
+                    var pinesDeshacer = pines[pines.length - 1];
+                    var lineasDeshacer = lineas[lineas.length - 1];
+
+                    stringDeshacer.forEach(function (panel) {
+                        var style = {
+                            fillColor: 'yellow',
+                            strokeColor: 'orange',
+                            strokeThickness: 2
+                        };
+                        panel.setOptions(style);
+                        panel.metadata = undefined;
+                    });
+
+                    pinesDeshacer.forEach(function (pin) {
+                        map.entities.remove(pin);
+                    });
+
+                    lineasDeshacer.forEach(function (linea) {
+                        map.entities.remove(linea);
+                    });
+
+                    stringsDibujados.splice(stringsDibujados.length - 1, 1);
+                    pines.splice(pines.length - 1, 1);
+                    lineas.splice(lineas.length - 1, 1);
+                    totalStrings--;
+                });
+
+                function GetLatitud(){
+                    return $('#area').val().split(',')[0].replace('.',',');
+                }
+
+                function GetLongitud() {
+                    return $('#area').val().split(',')[1].replace('.', ',');
+                }
+
+                function GetAzimuth() {
+                    return $('#azimuth').val().split('.')[0];
+                }
+
+                function GetPotencia() {
+                    return $('#totalPotencia').val().replace('.', ',');
+                }
+
+            </script>
+
+            <div class="row" style="height:91vh">
+                <div class="col-12">
+                    <div id="myMap" style="height:91vh; width:auto"></div>
+                </div>
+            </div>
+        }
+
+    </div>
+</div>
+@code {
+    [Inject]
+    private IJSRuntime JS { get; set; }
+
+    [SupplyParameterFromForm]
+    private string Coordenadas { get; set; }
+
+    [SupplyParameterFromForm]
+    private string PotenciaTotal { get; set; }
+
+    [SupplyParameterFromForm]
+    private string Azimuth { get; set; }
+
+    [Inject]
+    private ObjectTransporter? ObjectTransporter { get; set; }
+
+
+    [Inject]
+    private NavigationManager? Redireccionador { get; set; }
+
+    public Terreno? InstalacionMapa { get; set; }
+
+    [Inject]
+    public I_InversorService? InversorService { get; set; }
+
+    [Inject]
+    public IPanelService? PanelService { get; set; }
+
+    private List<object> DatosPvgis { get; set; }
+
+    Sidebar sidebar = default!;
+    IEnumerable<NavItem>? navItems;
+
+    protected override void OnInitialized()
+    {
+        InstalacionMapa ??= new() { Id = 0 };
+        DatosPvgis = new List<object>();
+    }
+
+    private async Task<SidebarDataProviderResult> SidebarDataProvider(SidebarDataProviderRequest request)
+    {
+        if (navItems is null)
+            navItems = GetNavItems();
+
+        return await Task.FromResult(request.ApplyTo(navItems));
+    }
+
+    private IEnumerable<NavItem> GetNavItems()
+    {
+        navItems = new List<NavItem>
+        {
+            new NavItem { Id = "1", Href = "/Home", IconName = IconName.HouseDoorFill, Text = "Inicio"},
+
+            new NavItem { Id = "2", Href="/", IconName = IconName.HouseAddFill, Text = "Nueva Instalación" },
+
+            new NavItem { Id = "4", IconName = IconName.DatabaseFillAdd, Text = "Nuevo Componente" },
+            new NavItem { Id = "5", Href = "/NuevoPanel", IconName = IconName.SunFill, Text = "Nuevo Panel", ParentId="4"},
+            new NavItem { Id = "6", Href = "/NuevaBateria", IconName = IconName.BatteryCharging, Text = "Nueva Batería", ParentId="4"},
+            new NavItem { Id = "7", Href = "/mapa", IconName = IconName.MapFill, Text= "Mapa"},
+
+        };
+
+        return navItems;
+    }
+    private void ToggleSidebar() => sidebar.ToggleSidebar();
+
+    private async void ProcesarDatos()
+    {
+        InstalacionMapa.Latitud = Convert.ToDouble(await JS.InvokeAsync<string>("GetLatitud"));
+        InstalacionMapa.Longitud = Convert.ToDouble(await JS.InvokeAsync<string>("GetLongitud"));
+        InstalacionMapa.Azimuth = int.Parse(await JS.InvokeAsync<string>("GetAzimuth"));
+        InstalacionMapa.PotenciaTotal = Convert.ToDouble(await JS.InvokeAsync<string>("GetPotencia"));
+        ObjectTransporter.AddData("Resultado", InstalacionMapa);
+        Redireccionador.NavigateTo($"/graficoEnergia");
+    }
+
+    private void ObtenerPanel()
+    {
+
+    }
+
+    private bool HaCargado { get; set; } = false;
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            HaCargado = true;
+            StateHasChanged();
+        }
+        return base.OnAfterRenderAsync(firstRender);
+    }
+
+}
+
+<style>
+    :root {
+        --bb-sidebar-width: 270px;
+        --bb-sidebar-collapsed-width: 50px;
+        --bb-sidebar-background-color: rgba(234, 234, 234, 1);
+        --bb-sidebar-top-row-background-color: rgba(240,240,240,0.2);
+        --bb-sidebar-top-row-border-color: rgba(240,240,240,0.6);
+        --bb-sidebar-title-text-color: rgb(0,0,0);
+        --bb-sidebar-brand-icon-color: #000000;
+        --bb-sidebar-brand-image-width: 24px;
+        --bb-sidebar-brand-image-height: 24px;
+        --bb-sidebar-title-badge-text-color: rgb(255,255,255);
+        --bb-sidebar-title-badge-background-color: rgba(25,135,84,var(--bs-bg-opacity,1));
+        --bb-sidebar-navbar-toggler-icon-color: rgb(0,0,0);
+        --bb-sidebar-navbar-toggler-background-color: rgba(0,0,0,0.08);
+        --bb-sidebar-content-border-color: rgb(194,192,192);
+        --bb-sidebar-nav-item-text-color: rgba(255,255,255,0.9);
+        --bb-sidebar-nav-item-text-active-color-rgb: 255,255,255;
+        --bb-sidebar-nav-item-text-hover-color: rgba(var(--bb-sidebar-nav-item-text-active-color-rgb),0.7);
+        --bb-sidebar-nav-item-text-active-color: rgba(var(--bb-sidebar-nav-item-text-active-color-rgb),0.9);
+        --bb-sidebar-nav-item-background-hover-color: rgba(var(--bb-sidebar-nav-item-text-active-color-rgb),0.08);
+        --bb-sidebar-nav-item-group-background-color: rgba(var(--bb-sidebar-nav-item-text-active-color-rgb),0.08);
+    }
+</style>
